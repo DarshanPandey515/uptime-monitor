@@ -52,7 +52,8 @@ class LoginAPIView(APIView):
         response = Response({"access": str(refresh.access_token)})
         response.set_cookie(
             key="refresh_token", value=str(refresh),
-            httponly=True, secure=False, samesite="Lax",
+            httponly=True, secure=True, samesite="None",
+            max_age=7 * 24 * 60 * 60,  
         )
         return response
 
@@ -75,7 +76,6 @@ class RegisterAPIView(APIView):
     permission_classes = []
 
     def post(self, request):
-        # already imported above in real file
         from .serializers import RegisterSerializer
         serializer = RegisterSerializer(data=request.data)
         if not serializer.is_valid():
@@ -85,37 +85,16 @@ class RegisterAPIView(APIView):
         refresh = RefreshToken.for_user(user)
         response = Response(
             {"access": str(refresh.access_token),
-                           "detail": "Account created successfully."},
+             "detail": "Account created successfully."},
             status=201,
         )
         response.set_cookie(
             key="refresh_token", value=str(refresh),
-            httponly=True, secure=False, samesite="Lax",
+            httponly=True, secure=True, samesite="None",
+            max_age=7 * 24 * 60 * 60,
         )
         return response
-    
 
-class RegisterAPIView(APIView):
-    permission_classes = []
- 
-    def post(self, request):
-        from .serializers import RegisterSerializer           
-        serializer = RegisterSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=400)
- 
-        user    = serializer.save()
-        refresh = RefreshToken.for_user(user)
-        response = Response(
-            {"access": str(refresh.access_token), "detail": "Account created successfully."},
-            status=201,
-        )
-        response.set_cookie(
-            key="refresh_token", value=str(refresh),
-            httponly=True, secure=False, samesite="Lax",
-        )
-        return response
- 
 
 class LogoutAPIView(APIView):
     def post(self, request):
@@ -140,8 +119,9 @@ class ProfileView(APIView):
         return Response(UserProfileSerializer(profile).data)
 
     def patch(self, request):
-        profile    = self._get_or_create_profile(request.user)
-        serializer = UserProfileSerializer(profile, data=request.data, partial=True)
+        profile = self._get_or_create_profile(request.user)
+        serializer = UserProfileSerializer(
+            profile, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -164,7 +144,7 @@ class AlertSettingsView(APIView):
         return Response(AlertSettingsSerializer(obj).data)
 
     def put(self, request):
-        obj        = self._get_or_create(request.user)
+        obj = self._get_or_create(request.user)
         serializer = AlertSettingsSerializer(obj, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -192,8 +172,9 @@ class ChangePasswordView(APIView):
         user.save()
 
         # Re-issue tokens so the user stays logged in after password change
-        refresh  = RefreshToken.for_user(user)
-        response = Response({"access": str(refresh.access_token), "detail": "Password changed successfully."})
+        refresh = RefreshToken.for_user(user)
+        response = Response({"access": str(refresh.access_token),
+                            "detail": "Password changed successfully."})
         response.set_cookie(
             key="refresh_token", value=str(refresh),
             httponly=True, secure=False, samesite="Lax",
@@ -231,7 +212,7 @@ class WebsiteListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        websites   = Website.objects.filter(user=request.user)
+        websites = Website.objects.filter(user=request.user)
         serializer = WebsiteSerializer(websites, many=True)
         return Response(serializer.data)
 
@@ -250,16 +231,18 @@ class WebsiteDetailAPIView(APIView):
         return get_object_or_404(Website, pk=pk, user=request.user)
 
     def get(self, request, pk):
-        website  = self.get_object(request, pk)
-        now      = timezone.now()
+        website = self.get_object(request, pk)
+        now = timezone.now()
         last_24h = now - timedelta(hours=24)
         check_24h = website.checks.filter(checked_at__gte=last_24h)
 
-        total_checks      = check_24h.count()
+        total_checks = check_24h.count()
         successful_checks = check_24h.filter(status=True).count()
-        uptime            = round((successful_checks / total_checks) * 100, 2) if total_checks else 0
-        avg_response      = check_24h.aggregate(avg=Avg("response_time"))["avg"] or 0
-        recent_checks     = website.checks.all()[:50]
+        uptime = round((successful_checks / total_checks)
+                       * 100, 2) if total_checks else 0
+        avg_response = check_24h.aggregate(
+            avg=Avg("response_time"))["avg"] or 0
+        recent_checks = website.checks.all()[:50]
 
         return Response({
             "website":       WebsiteSerializer(website).data,
@@ -268,7 +251,7 @@ class WebsiteDetailAPIView(APIView):
         })
 
     def put(self, request, pk):
-        website    = self.get_object(request, pk)
+        website = self.get_object(request, pk)
         serializer = WebsiteSerializer(website, data=request.data)
         if serializer.is_valid():
             serializer.save(user=request.user)
@@ -285,7 +268,7 @@ class WebsiteToggleAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        website   = get_object_or_404(Website, pk=pk, user=request.user)
+        website = get_object_or_404(Website, pk=pk, user=request.user)
         is_active = request.data.get("is_active")
         if is_active is None:
             return Response({"error": "is_active required"}, status=400)
@@ -301,7 +284,7 @@ class ToggleMonitorAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        action   = request.data.get("action")
+        action = request.data.get("action")
         websites = Website.objects.filter(user=request.user)
 
         if action == "pause":
@@ -345,12 +328,12 @@ class SendTestEmailView(APIView):
         # Build a dummy website object for the template
         class _FakeSite:
             website_name = 'Test Site'
-            website_url  = 'https://example.com'
-            user         = request.user
+            website_url = 'https://example.com'
+            user = request.user
 
         class _FakeCheck:
-            checked_at    = timezone.now()
-            status_code   = 200
+            checked_at = timezone.now()
+            status_code = 200
             response_time = 142.0
             error_message = None
 

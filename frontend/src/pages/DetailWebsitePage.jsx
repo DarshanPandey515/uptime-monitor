@@ -117,9 +117,9 @@ const DetailWebsitePage = () => {
     let isMounted = true, socket = null;
     const connect = () => {
       if (!isMounted) return;
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsHost = window.location.host;
-      socket = new WebSocket(`${wsProtocol}//${wsHost}/ws/monitor/?token=${accessToken}`);
+      const wsBase = import.meta.env.VITE_WS_URL || 'wss://upmonitor-api.onrender.com';
+      socket = new WebSocket(`${wsBase}/ws/monitor/?token=${accessToken}`);
+
 
       socket.onopen = () => {
         setWsConnected(true);
@@ -340,25 +340,25 @@ const DetailWebsitePage = () => {
         {/* ── Tabs ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSelectedTab(t.id)}
-              style={{
-                padding: '10px 16px', fontSize: 13, fontWeight: 500,
-                color: selectedTab === t.id ? T.black : T.muted,
-                borderBottom: selectedTab === t.id ? `2px solid ${T.black}` : '2px solid transparent',
-                background: 'none', border: 'none', borderBottom: selectedTab === t.id ? `2px solid ${T.black}` : '2px solid transparent',
-                cursor: 'pointer', transition: 'color 0.15s',
-                display: 'flex', alignItems: 'center', gap: 6,
-                marginBottom: -1, letterSpacing: '0.14px',
-                fontFamily: "'Inter', sans-serif",
-              }}
-            >
-              <t.icon size={14} weight={selectedTab === t.id ? 'fill' : 'bold'} />
-              {t.label}
-            </button>
-          ))}
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setSelectedTab(t.id)}
+                style={{
+                  padding: '10px 16px', fontSize: 13, fontWeight: 500,
+                  color: selectedTab === t.id ? T.black : T.muted,
+                  borderBottom: selectedTab === t.id ? `2px solid ${T.black}` : '2px solid transparent',
+                  background: 'none', border: 'none', borderBottom: selectedTab === t.id ? `2px solid ${T.black}` : '2px solid transparent',
+                  cursor: 'pointer', transition: 'color 0.15s',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  marginBottom: -1, letterSpacing: '0.14px',
+                  fontFamily: "'Inter', sans-serif",
+                }}
+              >
+                <t.icon size={14} weight={selectedTab === t.id ? 'fill' : 'bold'} />
+                {t.label}
+              </button>
+            ))}
           </div>
           {/* Live / Polling indicator */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingBottom: 4, fontSize: 11, fontWeight: 500, color: wsConnected ? '#15803d' : T.muted, letterSpacing: '0.08em', textTransform: 'uppercase', flexShrink: 0 }}>
