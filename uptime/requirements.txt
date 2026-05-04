@@ -1,0 +1,25 @@
+# ── Core ──────────────────────────────────────────────────────────────────────
+Django>=4.2,<5.0
+django-environ              # env var + .env file parsing
+djangorestframework
+djangorestframework-simplejwt
+
+# ── ASGI / WebSockets ─────────────────────────────────────────────────────────
+daphne
+channels
+channels-redis         # upgrade path — harmless if REDIS_URL is not set
+
+# ── Background tasks ─────────────────────────────────────────────────────────
+django-background-tasks
+
+# ── Database ─────────────────────────────────────────────────────────────────
+psycopg2-binary        # PostgreSQL driver
+dj-database-url        # parse DATABASE_URL env var
+
+# ── Static files (production) ────────────────────────────────────────────────
+whitenoise
+
+# ── HTTP / utils ─────────────────────────────────────────────────────────────
+requests
+django-cors-headers
+asgiref
