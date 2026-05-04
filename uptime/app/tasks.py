@@ -11,6 +11,7 @@ from asgiref.sync import async_to_sync
 import time
 import requests
 import logging
+import resend
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +101,6 @@ def check_website(website_id):
                 status=False,
                 error_message=str(e),
             )
-            # Treat an exception as "going down"
-            # Capture previous_status BEFORE the update overwrites last_status
             previous_status = website.last_status
             Website.objects.filter(id=website.id).update(last_status=False)
             website.refresh_from_db()
@@ -143,25 +142,20 @@ def _maybe_send_alert(website, is_up, previous_status, check_result):
         logger.info("Alert on recover disabled for %s", website.website_name)
         return
 
-    # still_up → nothing to do
     if not going_down and not recovering and not still_down:
         logger.info("No transition for %s (was=%s now=%s)", website.website_name, previous_status, is_up)
         return
 
-    # For still_down: cooldown_mins=0 means repeat every check; >0 means wait cooldown
     if still_down and not going_down:
         if alert_cfg.cooldown_mins > 0:
             if website.last_alert_sent:
                 elapsed = timezone.now() - website.last_alert_sent
                 if elapsed < timedelta(minutes=alert_cfg.cooldown_mins):
-                    remaining = timedelta(minutes=alert_cfg.cooldown_mins) - elapsed
-                    logger.info("Cooldown active for %s (%s remaining)", website.website_name, remaining)
+                    logger.info("Cooldown active for %s", website.website_name)
                     return
             else:
-                return  # still_down but never alerted — skip (going_down would have fired first)
-        # cooldown_mins == 0: fall through and resend on every check
+                return
     else:
-        # going_down or recovering: apply cooldown as normal
         if alert_cfg.cooldown_mins > 0 and website.last_alert_sent:
             elapsed = timezone.now() - website.last_alert_sent
             if elapsed < timedelta(minutes=alert_cfg.cooldown_mins):
@@ -175,6 +169,31 @@ def _maybe_send_alert(website, is_up, previous_status, check_result):
     if sent:
         Website.objects.filter(id=website.id).update(
             last_alert_sent=timezone.now())
+
+
+def _send_email_resend(to_email, subject, text_body, html_body):
+    """Send email via Resend HTTP API."""
+    try:
+        api_key = settings.RESEND_API_KEY
+        if not api_key:
+            logger.error("RESEND_API_KEY not set — cannot send email")
+            return False
+
+        resend.api_key = api_key
+        params = {
+            "from": settings.DEFAULT_FROM_EMAIL,
+            "to": [to_email],
+            "subject": subject,
+            "text": text_body,
+            "html": html_body,
+        }
+        resend.Emails.send(params)
+        logger.info("Resend email sent to %s", to_email)
+        return True
+    except Exception as exc:
+        logger.error("Resend send failed for %s: %s", to_email, exc)
+        return False
+
 
 def _send_alert_email(website, recipient_email, alert_type, check_result):
     """
@@ -326,22 +345,13 @@ Status code    : {status_code_str}
 </body>
 </html>"""
 
-    try:
-        send_mail(
-            subject=subject,
-            message=text_body,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[recipient_email],
-            html_message=html_body,
-            fail_silently=False,
-        )
-        logger.info("Alert email sent to %s for %s (%s)",
-                    recipient_email, website.website_name, alert_type)
-        return True
-    except Exception as exc:
-        logger.error("Failed to send alert email for %s: %s",
-                     website.website_name, exc)
-        return False
+    # Send via Resend instead of SMTP
+    return _send_email_resend(
+        recipient_email,
+        subject,
+        text_body,
+        html_body,
+    )
 
 
 # ──────────────────────────────────────────────

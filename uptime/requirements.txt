@@ -23,3 +23,4 @@ whitenoise
 requests
 django-cors-headers
 asgiref
+resend

@@ -25,6 +25,8 @@ env = environ.Env(
     EMAIL_HOST_USER      = (str,   ''),
     EMAIL_HOST_PASSWORD  = (str,   ''),
     DEFAULT_FROM_EMAIL   = (str,   'UpMonitor <noreply@upmonitor.local>'),
+    # Resend
+    RESEND_API_KEY       = (str,   ''),
 )
 
 environ.Env.read_env(BASE_DIR / '.env')   # no-op if .env doesn't exist
@@ -90,8 +92,6 @@ ASGI_APPLICATION  = 'core.asgi.application'
 
 
 # ── Database ──────────────────────────────────────────────────────────────────
-# Render injects DATABASE_URL automatically when a Postgres instance is attached.
-# Locally it falls back to SQLite via the default declared in environ.Env above.
 
 DATABASES = {
     'default': env.db('DATABASE_URL')
@@ -180,7 +180,12 @@ else:
 
 # ── Email ─────────────────────────────────────────────────────────────────────
 
-if env('EMAIL_HOST_USER'):
+RESEND_API_KEY = env('RESEND_API_KEY')
+
+if RESEND_API_KEY:
+    # Use Resend (HTTP API) – dummy SMTP backend, we send via resend API directly
+    EMAIL_BACKEND = 'django.core.mail.backends.base.BaseEmailBackend'
+elif env('EMAIL_HOST_USER'):
     EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
     EMAIL_HOST          = env('EMAIL_HOST')
     EMAIL_PORT          = env('EMAIL_PORT')
@@ -194,18 +199,15 @@ else:
     DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 
 
+# ── Cookie security (cross‑domain required for refresh token) ───────────────
+
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SECURE   = True
+CSRF_COOKIE_SAMESITE    = 'None'
+CSRF_COOKIE_SECURE      = True
+
+
 # ── Misc ──────────────────────────────────────────────────────────────────────
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
-
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-
-
-
-CSRF_COOKIE_SAMESITE    = "None"
-SESSION_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SECURE      = True
-SESSION_COOKIE_SECURE   = True
-
-

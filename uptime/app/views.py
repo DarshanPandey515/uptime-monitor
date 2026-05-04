@@ -53,7 +53,7 @@ class LoginAPIView(APIView):
         response.set_cookie(
             key="refresh_token", value=str(refresh),
             httponly=True, secure=True, samesite="None",
-            max_age=7 * 24 * 60 * 60,  
+            max_age=7 * 24 * 60 * 60,
         )
         return response
 
@@ -177,7 +177,8 @@ class ChangePasswordView(APIView):
                             "detail": "Password changed successfully."})
         response.set_cookie(
             key="refresh_token", value=str(refresh),
-            httponly=True, secure=False, samesite="Lax",
+            httponly=True, secure=True, samesite="None",
+            max_age=7 * 24 * 60 * 60,
         )
         return response
 
@@ -238,10 +239,8 @@ class WebsiteDetailAPIView(APIView):
 
         total_checks = check_24h.count()
         successful_checks = check_24h.filter(status=True).count()
-        uptime = round((successful_checks / total_checks)
-                       * 100, 2) if total_checks else 0
-        avg_response = check_24h.aggregate(
-            avg=Avg("response_time"))["avg"] or 0
+        uptime = round((successful_checks / total_checks) * 100, 2) if total_checks else 0
+        avg_response = check_24h.aggregate(avg=Avg("response_time"))["avg"] or 0
         recent_checks = website.checks.all()[:50]
 
         return Response({
@@ -313,7 +312,6 @@ class SendTestEmailView(APIView):
         from .models import AlertSettings, Website
         from django.utils import timezone
 
-        # Fetch or validate the target email
         recipient = request.data.get('email', '').strip()
         if not recipient:
             try:
@@ -325,7 +323,6 @@ class SendTestEmailView(APIView):
         if not recipient:
             return Response({'error': 'No email address provided.'}, status=400)
 
-        # Build a dummy website object for the template
         class _FakeSite:
             website_name = 'Test Site'
             website_url = 'https://example.com'
