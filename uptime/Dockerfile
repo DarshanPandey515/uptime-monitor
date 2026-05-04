@@ -19,9 +19,12 @@ COPY . .
 # Collect static files at build time
 RUN python manage.py collectstatic --noinput
 
-# Supervisor config is copied from deploy/supervisord.conf
+# Copy supervisor and entrypoint configs
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8000
 
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# entrypoint runs migrate first, then starts supervisord
+CMD ["/entrypoint.sh"]
