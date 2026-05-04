@@ -24,12 +24,12 @@ env = environ.Env(
     EMAIL_USE_SSL        = (bool,  False),
     EMAIL_HOST_USER      = (str,   ''),
     EMAIL_HOST_PASSWORD  = (str,   ''),
-    DEFAULT_FROM_EMAIL   = (str,   'UpMonitor <noreply@upmonitor.local>'),
+    DEFAULT_FROM_EMAIL   = (str,   'onboarding@resend.dev'),   # works for testing
     # Resend
     RESEND_API_KEY       = (str,   ''),
 )
 
-environ.Env.read_env(BASE_DIR / '.env')   # no-op if .env doesn't exist
+environ.Env.read_env(BASE_DIR / '.env')
 
 
 # ── Security ──────────────────────────────────────────────────────────────────
@@ -183,20 +183,12 @@ else:
 RESEND_API_KEY = env('RESEND_API_KEY')
 
 if RESEND_API_KEY:
-    # Use Resend (HTTP API) – dummy SMTP backend, we send via resend API directly
+    # Use Resend (HTTP API) – dummy SMTP backend, we send via Resend directly
     EMAIL_BACKEND = 'django.core.mail.backends.base.BaseEmailBackend'
-elif env('EMAIL_HOST_USER'):
-    EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST          = env('EMAIL_HOST')
-    EMAIL_PORT          = env('EMAIL_PORT')
-    EMAIL_USE_TLS       = env('EMAIL_USE_TLS')
-    EMAIL_USE_SSL       = env('EMAIL_USE_SSL')
-    EMAIL_HOST_USER     = env('EMAIL_HOST_USER')
-    EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
-    DEFAULT_FROM_EMAIL  = env('DEFAULT_FROM_EMAIL')
 else:
-    EMAIL_BACKEND      = 'django.core.mail.backends.console.EmailBackend'
-    DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')   # Must be a verified domain in Resend
 
 
 # ── Cookie security (cross‑domain required for refresh token) ───────────────
